@@ -120,22 +120,32 @@ async function handler(req, res) {
       }
 
       const id = sessionID.trim();
+      const operatorMessage = msg.trim();
       const session = loadSession(id) || {
         sessionID: id,
         createdAt: new Date().toISOString(),
         messages: [],
       };
 
-      const prompt = getPrompt(msg, session.messages);
+      const prompt = getPrompt(operatorMessage, session.messages);
 
       session.messages.push({
-        msg,
+        role: "user",
+        content: operatorMessage,
         timestamp: new Date().toISOString(),
       });
 
       saveSession(id, session);
 
       const answer = await chat(prompt);
+
+      session.messages.push({
+        role: "assistant",
+        content: answer,
+        timestamp: new Date().toISOString(),
+      });
+
+      saveSession(id, session);
 
       return send(res, 200, {
         msg: answer,
@@ -181,6 +191,20 @@ Newest operator message:
 ${operatorMessage}
 
 Conversation history: 
-${pastMessages.map((m) => `${m.role}: ${m.content}`).join("\n")}
+${pastMessages
+  .map((m) => {
+    if (typeof m?.role === "string" && typeof m?.content === "string") {
+      return `${m.role}: ${m.content}`;
+    }
+
+    // Backward compatibility for older saved sessions.
+    if (typeof m?.msg === "string") {
+      return `user: ${m.msg}`;
+    }
+
+    return null;
+  })
+  .filter(Boolean)
+  .join("\n")}
 
 `;
