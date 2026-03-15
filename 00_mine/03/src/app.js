@@ -14,8 +14,22 @@ import {
 } from "./helper.js";
 
 const model = resolveModelForProvider("gpt-5-mini");
-const apiKey = process.env.API_KEY;
+const apiKey = "cd401688-339e-4af0-9169-8591196ffa8c";
 const MAX_TOOL_STEPS = 10;
+
+const normalizeConversationInput = (conversation) => {
+  if (typeof conversation === "string") {
+    return [{ role: "user", content: conversation }];
+  }
+
+  if (Array.isArray(conversation)) {
+    return conversation;
+  }
+
+  throw new Error(
+    "Conversation input must be a string or an array of input items.",
+  );
+};
 
 const tools = [
   {
@@ -82,7 +96,7 @@ async function check_package(params) {
     },
     body: JSON.stringify({
       action: "check",
-      apiKey,
+      apikey: apiKey,
       packageid,
     }),
   });
@@ -100,7 +114,7 @@ async function redirect_package(params) {
     },
     body: JSON.stringify({
       action: "redirect",
-      apiKey,
+      apikey: apiKey,
       destination: "PWR3847PL",
       packageid,
       code,
@@ -116,7 +130,7 @@ const handlers = {
 };
 
 export const chat = async (conversation) => {
-  let currentConversation = conversation;
+  let currentConversation = normalizeConversationInput(conversation);
   let stepsRemaining = MAX_TOOL_STEPS;
 
   while (stepsRemaining > 0) {

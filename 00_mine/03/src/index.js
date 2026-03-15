@@ -5,6 +5,7 @@ import { chat } from "./app.js";
 
 const PORT = 3000;
 const SESSIONS_DIR = path.resolve("sessions");
+const MAX_LOG_BODY_LENGTH = 2000;
 
 // Ensure sessions directory exists
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -65,13 +66,46 @@ function send(res, status, data) {
   res.end(payload);
 }
 
+function requestLabel(method, url) {
+  return `${method} ${url.pathname}${url.search}`;
+}
+
+function logRequestStart(req, method, url) {
+  const remoteAddress = req.socket?.remoteAddress || "unknown";
+  console.log(`[REQUEST] ${requestLabel(method, url)} from ${remoteAddress}`);
+  console.log(`[REQUEST_HEADERS] ${JSON.stringify(req.headers)}`);
+}
+
+function logRequestBody(method, url, body) {
+  const raw = JSON.stringify(body);
+  const serialized =
+    raw.length > MAX_LOG_BODY_LENGTH
+      ? `${raw.slice(0, MAX_LOG_BODY_LENGTH)}... [truncated]`
+      : raw;
+  console.log(`[REQUEST_BODY] ${requestLabel(method, url)} ${serialized}`);
+}
+
+function logRequestEnd(method, url, statusCode, startedAt) {
+  const durationMs = Date.now() - startedAt;
+  console.log(
+    `[RESPONSE] ${requestLabel(method, url)} -> ${statusCode} (${durationMs}ms)`,
+  );
+}
+
 async function handler(req, res) {
   const url = new URL(req.url, "http://localhost");
   const method = (req.method || "GET").toUpperCase();
+  const startedAt = Date.now();
+
+  logRequestStart(req, method, url);
+  res.on("finish", () => {
+    logRequestEnd(method, url, res.statusCode, startedAt);
+  });
 
   try {
     if (method === "POST" && url.pathname === "/") {
       const body = await readBody(req);
+      logRequestBody(method, url, body);
       const { sessionID, msg } = body;
 
       if (
