@@ -115,7 +115,7 @@ async function redirect_package(params) {
     body: JSON.stringify({
       action: "redirect",
       apikey: apiKey,
-      destination: "PWR3847PL",
+      destination: "PWR6132PL",
       packageid,
       code,
     }),
